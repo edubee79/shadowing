@@ -1,150 +1,212 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shadowing Practice</title>
-
-<style>
-body {
-  font-family: system-ui, sans-serif;
-  background:#0f172a;
-  color:#e5e7eb;
-  padding:20px;
-}
-.container { max-width:480px; margin:auto; }
-.card {
-  background:#020617;
-  padding:20px;
-  border-radius:14px;
-}
-button {
-  width:100%;
-  padding:14px;
-  font-size:16px;
-  border:none;
-  border-radius:10px;
-  margin-top:12px;
-}
-.play { background:#1e293b; color:#fff; }
-.mic { background:#4338ca; color:#fff; }
-.mic.listening { background:#be123c; }
-.mic.disabled { opacity:.5; }
-.en { font-size:20px; margin-bottom:8px; }
-.ko { color:#94a3b8; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shadowing Master | 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }</style>
 </head>
+<body class="bg-slate-900 text-white min-h-screen font-pretendard">
 
-<body>
-<div class="container">
-  <div class="card">
-    <div class="en" id="en"></div>
-    <div class="ko" id="ko"></div>
+    <div id="start-overlay" class="fixed inset-0 z-[200] bg-slate-900 flex flex-col items-center justify-center p-10 text-center">
+        <div class="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl animate-bounce">
+            <i class="fas fa-microphone text-3xl text-white"></i>
+        </div>
+        <h2 class="text-2xl font-black mb-2 tracking-tighter">학습 준비 완료</h2>
+        <p class="text-slate-400 font-bold text-sm mb-8">마이크와 스피커 권한을 활성화하기 위해<br>아래 버튼을 눌러주세요.</p>
+        <button id="audio-unlock-btn" class="w-full max-w-xs py-5 bg-white text-slate-900 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all">권한 허용 및 시작</button>
+    </div>
 
-    <button id="playBtn" class="play">▶ 문장 듣기</button>
-    <button id="micBtn" class="mic disabled" disabled>🎤 따라 말하기</button>
-  </div>
-</div>
+    <nav class="p-6 flex justify-between items-center max-w-md mx-auto">
+        <button onclick="location.href='index.html'" class="text-slate-400"><i class="fas fa-arrow-left text-xl"></i></button>
+        <h1 id="nav-title" class="font-black text-lg tracking-tighter italic text-indigo-400 uppercase">SHADOWING</h1>
+        <div class="w-8"></div>
+    </nav>
 
-<script>
-/* ================= 데이터 ================= */
-const data = [
-  { en: "Some people are gathered around a table.", ko: "사람들이 테이블에 둘러앉아 있다." }
-];
+    <main class="max-w-md mx-auto px-6 pb-20 text-center">
+        <div class="mb-10 flex justify-between items-end text-left">
+            <div>
+                <p class="text-indigo-500 text-[10px] font-black uppercase tracking-widest mb-1">Step 02. Shadowing</p>
+                <h2 class="text-2xl font-black italic">Listen & Repeat</h2>
+            </div>
+            <div class="text-right">
+                <span id="progress-text" class="text-indigo-400 font-black text-2xl">1</span><span id="total-text" class="text-slate-700 font-bold text-lg"> / --</span>
+            </div>
+        </div>
 
-const enEl = document.getElementById("en");
-const koEl = document.getElementById("ko");
-const playBtn = document.getElementById("playBtn");
-const micBtn = document.getElementById("micBtn");
+        <div class="bg-white rounded-[3rem] p-10 shadow-2xl mb-10 border border-white/10 relative overflow-hidden min-h-[250px] flex items-center justify-center">
+            <div id="sentence-box" class="blur-md transition-all duration-700">
+                <p id="target-sentence" class="text-slate-900 font-black text-2xl leading-tight italic mb-4 tracking-tight"></p>
+                <p id="sentence-mean" class="text-slate-400 font-bold text-sm"></p>
+            </div>
+            
+            <div id="play-overlay" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                <button onclick="playAudio()" class="w-24 h-24 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform">
+                    <i class="fas fa-play text-white text-4xl ml-1"></i>
+                </button>
+            </div>
+        </div>
 
-enEl.textContent = data[0].en;
-koEl.textContent = data[0].ko;
+        <div class="space-y-6">
+            <div id="status-msg" class="text-slate-500 font-black text-[10px] uppercase tracking-widest">중앙 버튼을 눌러 소리를 들으세요</div>
+            <button id="mic-btn" disabled onclick="startListening()" class="w-full py-8 bg-slate-800 text-slate-600 rounded-[2.5rem] text-xl font-black transition-all active:scale-95">
+                <i class="fas fa-microphone mr-3"></i> 소리를 먼저 들으세요
+            </button>
+            <p id="user-transcript" class="text-indigo-400 font-bold italic text-sm min-h-[1.5rem]"></p>
+        </div>
+    </main>
 
-/* ================= 상태 ================= */
-let micUnlocked = false;
-let listening = false;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* ================= 1️⃣ 마이크 강제 언락 ================= */
-async function unlockMic() {
-  if (micUnlocked) return;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-    micUnlocked = true;
-  } catch (e) {
-    alert("마이크 권한을 허용해야 합니다");
-  }
-}
+        // Firebase 설정 (유지)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBThrCtBNJuVcfPD3Vm6XvPD7McT5JJsN8",
+            authDomain: "eduthot-fb088.firebaseapp.com",
+            projectId: "eduthot-fb088",
+            storageBucket: "eduthot-fb088.firebasestorage.app",
+            messagingSenderId: "919552710378",
+            appId: "1:919552710378:web:7ba72ea2d195e092f8a993"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-/* ================= TTS ================= */
-const synth = window.speechSynthesis;
+        // 데이터셋 (유지)
+        const allShadowData = { 1: [{en: "Some people are gathered around a table.", ko: "사람들이 테이블에 둘러앉아 있다."}, {en: "He is leaning against the railing.", ko: "그는 난간에 기대어 있다."}, {en: "A woman is reaching for an item.", ko: "여자가 물건을 잡으려고 손을 뻗고 있다."}, {en: "They are facing each other.", ko: "그들이 서로 마주 보고 있다."}, {en: "He is adjusting his glasses.", ko: "그가 안경을 고쳐 쓰고 있다."}, {en: "She is browsing in a bookstore.", ko: "그녀가 서점에서 책을 구경하고 있다."}, {en: "A man is sweeping the pavement.", ko: "남자가 보도를 쓸고 있다."}, {en: "He is gesturing with his hands.", ko: "그가 손으로 몸짓을 하고 있다."}, {en: "They are strolling along the walkway.", ko: "그들이 산책로를 따라 걷고 있다."}, {en: "She is sorting through some papers.", ko: "그녀가 종이들을 분류하고 있다."}, {en: "A person is pouring a beverage into a glass.", ko: "음료를 잔에 따르고 있다."}, {en: "He is examining some documents.", ko: "그는 문서를 검토하고 있다."}, {en: "They are shaking hands with each other.", ko: "그들은 서로 악수하고 있다."}, {en: "She is pointing at a screen.", ko: "그녀는 화면을 가리키고 있다."}, {en: "The man is lifting a box.", ko: "남자가 상자를 들어 올리고 있다."}, {en: "He is taking a photograph of the scenery.", ko: "그는 풍경 사진을 찍고 있다."}, {en: "They are applauding the performance.", ko: "그들이 공연에 박수를 치고 있다."}, {en: "She is wrapping a gift.", ko: "그녀가 선물을 포장하고 있다."}, {en: "A man is typing on a keyboard.", ko: "남자가 키보드로 타이핑을 하고 있다."}, {en: "They are waiting in line.", ko: "그들이 줄을 서서 기다리고 있다."}, {en: "He is pushing a cart through the aisle.", ko: "그가 통로에서 카트를 밀고 있다."}, {en: "She is drinking from a water fountain.", ko: "그녀가 식수대에서 물을 마시고 있다."}, {en: "They are discussing some information.", ko: "그들이 정보를 논의하고 있다."}, {en: "A man is boarding a bus.", ko: "남자가 버스에 올라타고 있다."}, {en: "He is checking his reflection in the mirror.", ko: "그가 거울에 비친 모습을 확인하고 있다."}, {en: "She is wiping the counter with a cloth.", ko: "그녀가 천으로 카운터를 닦고 있다."}, {en: "They are hiking up a mountain.", ko: "그들이 산을 등반하고 있다."}, {en: "He is repairing a bicycle.", ko: "그가 자전거를 수리하고 있다."}, {en: "She is handing a document to her colleague.", ko: "그녀가 동료에게 서류를 건네고 있다."}, {en: "A man is tying his shoelaces.", ko: "남자가 신발끈을 묶고 있다."}, {en: "They are sitting across from each other.", ko: "그들이 서로 마주 보고 앉아 있다."}, {en: "He is reading a menu.", ko: "그는 메뉴판을 읽고 있다."}, {en: "She is carrying a briefcase.", ko: "그녀가 서류 가방을 들고 있다."}] };
 
-playBtn.addEventListener("click", async () => {
-  await unlockMic();
+        let currentSession = [];
+        let currentIndex = 0;
+        let recognition = null;
+        const synth = window.speechSynthesis;
 
-  micBtn.disabled = true;
-  micBtn.classList.add("disabled");
+        // [핵심] 모바일 권한 잠금 해제
+        document.getElementById('audio-unlock-btn').addEventListener('click', function() {
+            // 1. 음성 출력 잠금 해제
+            const silent = new SpeechSynthesisUtterance("Welcome");
+            silent.volume = 0;
+            synth.speak(silent);
 
-  synth.cancel();
-  const u = new SpeechSynthesisUtterance(data[0].en);
-  u.lang = "en-US";
-  u.rate = 0.85;
+            // 2. 음성 인식 객체 생성 (사용자 클릭 시점에 생성해야 함)
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+                recognition.continuous = false; // 모바일 안정성을 위해 false
 
-  u.onend = () => {
-    // 안드로이드 안정화 딜레이
-    setTimeout(() => {
-      micBtn.disabled = false;
-      micBtn.classList.remove("disabled");
-    }, 500);
-  };
+                // 인식 결과 이벤트 바인딩
+                recognition.onresult = handleRecognitionResult;
+                recognition.onerror = handleRecognitionError;
+                recognition.onend = () => { resetMicBtn(); };
+            } else {
+                alert("이 브라우저는 음성 인식을 지원하지 않습니다. 크롬이나 사파리를 사용해주세요.");
+            }
 
-  synth.speak(u);
-});
+            document.getElementById('start-overlay').classList.add('hidden');
+            initSession();
+        }, { once: true });
 
-/* ================= 2️⃣ 클릭 시 SpeechRecognition 생성 ================= */
-micBtn.addEventListener("click", async () => {
-  if (listening) return;
+        function initSession() {
+            const day = localStorage.getItem('shadow_day') || 1;
+            document.getElementById('nav-title').innerText = `DAY ${day} SHADOWING`;
+            currentSession = [...(allShadowData[day] || allShadowData[1])];
+            document.getElementById('total-text').innerText = ` / ${currentSession.length}`;
+            loadSentence();
+        }
 
-  await unlockMic();
+        function loadSentence() {
+            if(currentIndex >= currentSession.length) { finishShadowing(); return; }
+            const data = currentSession[currentIndex];
+            document.getElementById('target-sentence').innerText = data.en;
+            document.getElementById('sentence-mean').innerText = data.ko;
+            document.getElementById('progress-text').innerText = currentIndex + 1;
+            document.getElementById('sentence-box').classList.add('blur-md');
+            document.getElementById('play-overlay').style.display = 'flex';
+            document.getElementById('status-msg').innerText = "재생 버튼을 누르세요";
+            
+            const micBtn = document.getElementById('mic-btn');
+            micBtn.disabled = true;
+            micBtn.classList.replace('bg-indigo-600', 'bg-slate-800');
+            micBtn.classList.replace('bg-rose-500', 'bg-slate-800');
+            micBtn.innerText = "소리를 먼저 들으세요";
+            document.getElementById('user-transcript').innerText = "";
+        }
 
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    alert("이 브라우저는 음성 인식을 지원하지 않습니다");
-    return;
-  }
+        window.playAudio = function() {
+            synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(currentSession[currentIndex].en);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.8;
+            utterance.onend = function() {
+                document.getElementById('sentence-box').classList.remove('blur-md');
+                document.getElementById('play-overlay').style.display = 'none';
+                document.getElementById('status-msg').innerText = "이제 따라 말하세요!";
+                const micBtn = document.getElementById('mic-btn');
+                micBtn.disabled = false;
+                micBtn.classList.replace('bg-slate-800', 'bg-indigo-600');
+                micBtn.innerText = "마이크 누르고 따라하기";
+            };
+            synth.speak(utterance);
+        };
 
-  const recognition = new SR();
-  recognition.lang = "en-US";
-  recognition.continuous = false;
-  recognition.interimResults = false;
+        window.startListening = function() {
+            if (!recognition) return;
+            try {
+                recognition.start();
+                document.getElementById('mic-btn').innerText = "인식 중... 말하세요";
+                document.getElementById('mic-btn').classList.replace('bg-indigo-600', 'bg-rose-500');
+            } catch (e) {
+                console.error("인식 시작 실패", e);
+            }
+        };
 
-  listening = true;
-  micBtn.classList.add("listening");
-  micBtn.textContent = "🎙 듣는 중...";
+        function handleRecognitionResult(event) {
+            const result = event.results[0][0].transcript.toLowerCase().replace(/[.,!?]/g, "");
+            const target = currentSession[currentIndex].en.toLowerCase().replace(/[.,!?]/g, "");
+            document.getElementById('user-transcript').innerText = `내 발음: "${result}"`;
 
-  recognition.onresult = e => {
-    alert("인식 결과: " + e.results[0][0].transcript);
-  };
+            const targetWords = target.split(' ').filter(w => w.length > 3);
+            const isPass = result.includes(target) || targetWords.every(w => result.includes(w));
 
-  recognition.onerror = () => {
-    listening = false;
-    micBtn.classList.remove("listening");
-    micBtn.textContent = "🎤 따라 말하기";
-  };
+            if (isPass) {
+                currentIndex++;
+                setTimeout(() => { alert("Great!"); loadSentence(); }, 300);
+            } else {
+                alert("아쉬워요! 다시 한 번 듣고 따라해 보세요.");
+                playAudio();
+            }
+        }
 
-  recognition.onend = () => {
-    listening = false;
-    micBtn.classList.remove("listening");
-    micBtn.textContent = "🎤 따라 말하기";
-  };
+        function handleRecognitionError(event) {
+            console.error("Speech Recognition Error", event.error);
+            if(event.error === 'not-allowed') {
+                alert("마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용해주세요.");
+            }
+        }
 
-  try {
-    recognition.start();
-  } catch (e) {
-    listening = false;
-    micBtn.textContent = "🎤 따라 말하기";
-  }
-});
-</script>
+        function resetMicBtn() {
+            const micBtn = document.getElementById('mic-btn');
+            if (!micBtn.disabled) {
+                micBtn.innerText = "마이크 누르고 따라하기";
+                micBtn.classList.replace('bg-rose-500', 'bg-indigo-600');
+            }
+        }
+
+        async function finishShadowing() {
+            const user = JSON.parse(localStorage.getItem('toeic_user'));
+            const day = localStorage.getItem('shadow_day') || 1;
+            if(user) {
+                await setDoc(doc(db, "Winter_Users", user.userId), {
+                    [`shadow_day_${day}_pass`]: true,
+                    lastShadowDate: new Date().toISOString()
+                }, { merge: true });
+            }
+            alert(`${day}일차 전체 문장 학습 완료!`);
+            location.href = "index.html";
+        }
+    </script>
 </body>
 </html>
