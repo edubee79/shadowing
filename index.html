@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadowing Practice</title>
+
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background:#0f172a;
+  color:#e5e7eb;
+  padding:20px;
+}
+.container { max-width:480px; margin:auto; }
+.card {
+  background:#020617;
+  padding:20px;
+  border-radius:14px;
+}
+button {
+  width:100%;
+  padding:14px;
+  font-size:16px;
+  border:none;
+  border-radius:10px;
+  margin-top:12px;
+}
+.play { background:#1e293b; color:#fff; }
+.mic { background:#4338ca; color:#fff; }
+.mic.listening { background:#be123c; }
+.mic.disabled { opacity:.5; }
+.en { font-size:20px; margin-bottom:8px; }
+.ko { color:#94a3b8; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+    <div class="en" id="en"></div>
+    <div class="ko" id="ko"></div>
+
+    <button id="playBtn" class="play">▶ 문장 듣기</button>
+    <button id="micBtn" class="mic disabled" disabled>🎤 따라 말하기</button>
+  </div>
+</div>
+
+<script>
+/* ================= 데이터 ================= */
+const data = [
+  { en: "Some people are gathered around a table.", ko: "사람들이 테이블에 둘러앉아 있다." }
+];
+
+const enEl = document.getElementById("en");
+const koEl = document.getElementById("ko");
+const playBtn = document.getElementById("playBtn");
+const micBtn = document.getElementById("micBtn");
+
+enEl.textContent = data[0].en;
+koEl.textContent = data[0].ko;
+
+/* ================= 상태 ================= */
+let micUnlocked = false;
+let listening = false;
+
+/* ================= 1️⃣ 마이크 강제 언락 ================= */
+async function unlockMic() {
+  if (micUnlocked) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    micUnlocked = true;
+  } catch (e) {
+    alert("마이크 권한을 허용해야 합니다");
+  }
+}
+
+/* ================= TTS ================= */
+const synth = window.speechSynthesis;
+
+playBtn.addEventListener("click", async () => {
+  await unlockMic();
+
+  micBtn.disabled = true;
+  micBtn.classList.add("disabled");
+
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(data[0].en);
+  u.lang = "en-US";
+  u.rate = 0.85;
+
+  u.onend = () => {
+    // 안드로이드 안정화 딜레이
+    setTimeout(() => {
+      micBtn.disabled = false;
+      micBtn.classList.remove("disabled");
+    }, 500);
+  };
+
+  synth.speak(u);
+});
+
+/* ================= 2️⃣ 클릭 시 SpeechRecognition 생성 ================= */
+micBtn.addEventListener("click", async () => {
+  if (listening) return;
+
+  await unlockMic();
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert("이 브라우저는 음성 인식을 지원하지 않습니다");
+    return;
+  }
+
+  const recognition = new SR();
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  listening = true;
+  micBtn.classList.add("listening");
+  micBtn.textContent = "🎙 듣는 중...";
+
+  recognition.onresult = e => {
+    alert("인식 결과: " + e.results[0][0].transcript);
+  };
+
+  recognition.onerror = () => {
+    listening = false;
+    micBtn.classList.remove("listening");
+    micBtn.textContent = "🎤 따라 말하기";
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    micBtn.classList.remove("listening");
+    micBtn.textContent = "🎤 따라 말하기";
+  };
+
+  try {
+    recognition.start();
+  } catch (e) {
+    listening = false;
+    micBtn.textContent = "🎤 따라 말하기";
+  }
+});
+</script>
+</body>
+</html>
